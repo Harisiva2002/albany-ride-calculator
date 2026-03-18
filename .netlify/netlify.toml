@@ -1,0 +1,78 @@
+headersOrigin = "config"
+plugins = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "C:\\Users\\bramh\\.gemini\\antigravity\\playground\\solar-belt"
+publishOrigin = "default"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=()"
+Content-Security-Policy = "default-src 'self'; script-src 'self' https://unpkg.com 'unsafe-inline'; style-src 'self' https://unpkg.com https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' https://*.tile.openstreetmap.org data:; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; form-action 'self';"
+Cache-Control = "public, max-age=3600"
+
+[[headers]]
+for = "/*.html"
+
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/*.js"
+
+[headers.values]
+Cache-Control = "public, max-age=86400"
+
+[[headers]]
+for = "/*.css"
+
+[headers.values]
+Cache-Control = "public, max-age=86400"
+
+[[redirects]]
+from = "http://albanyrides.netlify.app/*"
+to = "https://albanyrides.netlify.app/:splat"
+status = 301.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

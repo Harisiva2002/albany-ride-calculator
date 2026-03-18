@@ -1,0 +1,45 @@
+# Netlify config for Albany Ride Calculator
+# Security headers: HTTPS, CSP, anti-clickjacking, MIME protection
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Force HTTPS always
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+    # Prevent site from being embedded in iframes (clickjacking protection)
+    X-Frame-Options = "DENY"
+
+    # Prevent MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+
+    # Control referrer info sent to external sites
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # Restrict browser feature access
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=()"
+
+    # Content Security Policy
+    # - Allows scripts/styles from known CDNs (Leaflet, Google Fonts)
+    # - Allows fetch to Nominatim, OSRM, and WhatsApp
+    # - Blocks inline scripts except those we explicitly use
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://unpkg.com 'unsafe-inline'; style-src 'self' https://unpkg.com https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' https://*.tile.openstreetmap.org data:; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; form-action 'self';"
+
+    # Cache static assets for performance
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    # Don't cache HTML so updates deploy instantly
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

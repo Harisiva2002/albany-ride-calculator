@@ -1,0 +1,11 @@
+/*
+  Netlify _redirects file
+  Ensures all HTTP traffic is redirected to HTTPS
+  and all routes serve index.html (SPA fallback)
+*/
+
+# Force HTTPS redirect
+http://albanyrides.netlify.app/* https://albanyrides.netlify.app/:splat 301!
+
+# SPA fallback
+/*    /index.html    200
