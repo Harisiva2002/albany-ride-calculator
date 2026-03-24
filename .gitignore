@@ -1,1 +1,4 @@
 .vercel
+desktop.ini
+*.class
+*.log
