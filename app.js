@@ -21,7 +21,7 @@ const ALBANY_LAT = 42.6526;
 const ALBANY_LON = -73.7562;
 
 // --------------- MAP SETUP ---------------
-const ALBANY_CENTER = [ALBANY_LAT, ALBANY_LON]; // Albany, NY capital
+const ALBANY_CENTER = [ALBANY_LAT, ALBANY_LON];
 
 const map = L.map('map', {
   center: ALBANY_CENTER,
@@ -30,24 +30,73 @@ const map = L.map('map', {
   attributionControl: false
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '© OpenStreetMap contributors'
+// Dark Neon map tiles (CartoDB Dark Matter)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19,
+  minZoom: 3,
+  subdomains: 'abcd',
+  attribution: '© <a href="https://carto.com">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright">OSM</a>'
 }).addTo(map);
 
-// Custom markers
-function makeMarker(color) {
+// Inject keyframe animations for markers
+const markerStyles = document.createElement('style');
+markerStyles.textContent = `
+  @keyframes radarPulse {
+    0%   { transform: scale(0.5); opacity: 0.9; }
+    100% { transform: scale(3.5); opacity: 0; }
+  }
+  @keyframes pinDrop {
+    0%   { transform: translateY(-22px) scale(0.6); opacity: 0; }
+    60%  { transform: translateY(3px) scale(1.05); opacity: 1; }
+    80%  { transform: translateY(-3px) scale(0.97); }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  @keyframes routeDash {
+    from { stroke-dashoffset: 1000; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .arc-marker-root { animation: pinDrop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .radar-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 20px; height: 20px;
+    margin: -10px 0 0 -10px;
+    border-radius: 50%;
+    animation: radarPulse 2s cubic-bezier(0,0,0.2,1) infinite;
+    pointer-events: none;
+  }
+  .radar-ring-2 { animation-delay: 0.7s; }
+`;
+document.head.appendChild(markerStyles);
+
+// Premium animated marker
+function makeMarker(color, glowColor) {
+  const gc = glowColor || color;
   return L.divIcon({
     className: '',
-    html: `<div style="
-      width:14px;height:14px;
-      background:${color};
-      border:3px solid #fff;
-      border-radius:50%;
-      box-shadow:0 2px 8px rgba(0,0,0,0.5)">
-    </div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7]
+    html: `
+      <div class="arc-marker-root" style="position:relative;width:18px;height:18px;">
+        <div class="radar-ring" style="background:${gc}22;border:1.5px solid ${gc}66;"></div>
+        <div class="radar-ring radar-ring-2" style="background:${gc}11;border:1.5px solid ${gc}44;"></div>
+        <div style="
+          position:absolute;top:50%;left:50%;
+          width:14px;height:14px;
+          transform:translate(-50%,-50%);
+          background:${color};
+          border:2.5px solid rgba(255,255,255,0.9);
+          border-radius:50%;
+          box-shadow:0 0 10px ${gc},0 2px 8px rgba(0,0,0,0.6);
+        "></div>
+      </div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+// Smooth animated fly to a location
+function flyToLocation(lat, lon) {
+  map.flyTo([lat, lon], Math.max(map.getZoom(), 12), {
+    animate: true, duration: 1.2, easeLinearity: 0.25
   });
 }
 
@@ -72,6 +121,7 @@ const destSugg          = document.getElementById('destination-suggestions');
 const stopsContainer    = document.getElementById('stops-container');
 const addStopBtn        = document.getElementById('add-stop-btn');
 const estimateBtn       = document.getElementById('estimate-btn');
+const fareCard          = document.getElementById('fare-card');
 const fareAmount        = document.getElementById('fare-amount');
 const fareRouteInfo     = document.getElementById('fare-route-info');
 const fareBreakdown     = document.getElementById('fare-breakdown');
@@ -79,6 +129,14 @@ const shareActions      = document.getElementById('share-actions');
 const whatsappTextBtn   = document.getElementById('whatsapp-text-btn');
 const whatsappImgBtn    = document.getElementById('whatsapp-img-btn');
 const swapBtn           = document.getElementById('swap-btn');
+
+// Helper: reveal the fare card (remove Tailwind 'hidden')
+function showFareCard() {
+  if (fareCard) {
+    fareCard.classList.remove('hidden');
+    fareCard.classList.add('active');
+  }
+}
 
 // --------------- NOMINATIM GEOCODING ---------------
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org/search';
@@ -228,6 +286,7 @@ function bindAutocomplete(inputEl, suggestionsEl, onSelect) {
 bindAutocomplete(originInput, originSugg, (place) => {
   state.origin = place;
   placeMarker('origin', place.lat, place.lon);
+  flyToLocation(place.lat, place.lon);
   fitBounds();
 });
 
@@ -235,6 +294,7 @@ bindAutocomplete(originInput, originSugg, (place) => {
 bindAutocomplete(destinationInput, destSugg, (place) => {
   state.destination = place;
   placeMarker('destination', place.lat, place.lon);
+  flyToLocation(place.lat, place.lon);
   fitBounds();
 });
 
@@ -242,10 +302,10 @@ bindAutocomplete(destinationInput, destSugg, (place) => {
 function placeMarker(type, lat, lon) {
   if (type === 'origin') {
     if (originMarker) map.removeLayer(originMarker);
-    originMarker = L.marker([lat, lon], { icon: makeMarker('#6c63ff') }).addTo(map);
+    originMarker = L.marker([lat, lon], { icon: makeMarker('#a78bfa', '#7c3aed') }).addTo(map);
   } else {
     if (destMarker) map.removeLayer(destMarker);
-    destMarker = L.marker([lat, lon], { icon: makeMarker('#f97316') }).addTo(map);
+    destMarker = L.marker([lat, lon], { icon: makeMarker('#f97316', '#ea580c') }).addTo(map);
   }
 }
 
@@ -388,7 +448,7 @@ function calculateFare(miles) {
 
 // --------------- ROUTE POLYLINE ---------------
 async function drawRoute() {
-  if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+  if (routeLayer) { routeLayer.remove(); routeLayer = null; }
 
   const waypoints = [];
   if (state.origin) waypoints.push(`${state.origin.lon},${state.origin.lat}`);
@@ -403,15 +463,44 @@ async function drawRoute() {
     const res = await fetch(url);
     const data = await res.json();
     if (data.routes && data.routes[0]) {
-      routeLayer = L.geoJSON(data.routes[0].geometry, {
+      // Two-layer neon route: glow below + sharp line on top
+      const glowLine = L.geoJSON(data.routes[0].geometry, {
         style: {
-          color: '#6c63ff',
-          weight: 4,
-          opacity: 0.85,
-          dashArray: null
+          color: '#7c3aed',
+          weight: 10,
+          opacity: 0.22,
+          lineCap: 'round',
+          lineJoin: 'round'
         }
       }).addTo(map);
-      map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+
+      const sharpLine = L.geoJSON(data.routes[0].geometry, {
+        style: {
+          color: '#a78bfa',
+          weight: 3.5,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }
+      }).addTo(map);
+
+      // Animate the sharp line drawing in via CSS
+      sharpLine.eachLayer(layer => {
+        const el = layer.getElement();
+        if (el) {
+          const len = el.getTotalLength ? el.getTotalLength() : 1200;
+          el.style.strokeDasharray = len;
+          el.style.strokeDashoffset = len;
+          el.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1)';
+          requestAnimationFrame(() => { el.style.strokeDashoffset = '0'; });
+        }
+      });
+
+      // Store both layers for cleanup (remove old layers not re-added)
+      routeLayer = { glowLine, sharpLine,
+        remove: () => { map.removeLayer(glowLine); map.removeLayer(sharpLine); }
+      };
+      map.fitBounds(sharpLine.getBounds(), { padding: [40, 40] });
       // Return OSRM distance in miles for more accuracy
       return data.routes[0].distance / 1609.34;
     }
@@ -429,7 +518,7 @@ estimateBtn.addEventListener('click', async () => {
     return;
   }
 
-  estimateBtn.textContent = '⏳ Calculating...';
+  estimateBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-variation-settings: \'FILL\' 1;">autorenew</span> Calculating...';
   estimateBtn.disabled = true;
 
   // Try OSRM route first, fallback to haversine
@@ -462,11 +551,12 @@ estimateBtn.addEventListener('click', async () => {
     `;
     
     // Enable WhatsApp but with a special layout
+    showFareCard();
     shareActions.style.display = 'flex';
     whatsappTextBtn.onclick = () => shareLongDistanceOnWhatsAppText(miles);
     whatsappImgBtn.onclick = () => shareAsImage();
 
-    estimateBtn.textContent = '🔍 Get Fare Estimate';
+    estimateBtn.innerHTML = '<span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">bolt</span> Get Fare Estimate';
     estimateBtn.disabled = false;
     return;
   }
@@ -485,34 +575,100 @@ estimateBtn.addEventListener('click', async () => {
   const destStr = sanitize(destinationInput.value.trim());
   const stopsStr = state.stops.filter(Boolean).map(s => sanitize(s.display)).join(' → ');
 
-  let routeHTML = `<div class="route-row"><span class="icon">📍</span><span><strong>From:</strong> ${originStr}</span></div>`;
+  let routeHTML = `<div class="route-row"><div class="left-side"><span class="icon" style="color:#f43f5e;">📍</span><span style="color:#dce2f7;"><strong>From:</strong> ${originStr}</span></div></div>`;
   if (stopsStr) {
-    routeHTML += `<div class="route-row"><span class="icon">🔄</span><span><strong>Via:</strong> ${stopsStr}</span></div>`;
+    routeHTML += `<div class="route-row"><div class="left-side"><span class="icon">🔄</span><span style="color:#dce2f7;"><strong>Via:</strong> ${stopsStr}</span></div></div>`;
   }
-  routeHTML += `<div class="route-row"><span class="icon">🏁</span><span><strong>To:</strong> ${destStr}</span></div>`;
+  routeHTML += `<div class="route-row"><div class="left-side"><span class="icon" style="color:#958ea0;font-size:1.1rem;">🏁</span><span style="color:#dce2f7;"><strong>To:</strong> ${destStr}</span></div></div>`;
   
   fareRouteInfo.innerHTML = routeHTML;
   fareRouteInfo.style.display = 'block';
 
-  let breakdown = `📏 Distance: <strong>${miles.toFixed(1)} miles</strong><br>`;
+  // Rich cost breakdown
+  let breakdown = '';
 
   if (miles < FARE.BASE_MILES_THRESHOLD) {
-    breakdown += `💵 Base flat fare (under 5 mi): <strong>$${result.baseFare.toFixed(2)}</strong><br>`;
-    breakdown += `⛽ Gas surcharge: <strong>$0.00</strong> (flat rate)`;
+    breakdown = `
+      <div class="cost-breakdown-box">
+        <div class="cost-row">
+          <div class="left-side">
+            <span class="cost-icon">📏</span>
+            <span class="cost-label">Distance</span>
+          </div>
+          <span class="cost-value">${miles.toFixed(1)} mi</span>
+        </div>
+        <div class="cost-row highlight">
+          <div class="left-side">
+            <span class="cost-icon">💵</span>
+            <span class="cost-label">Base rate (flat rate under 5 mi)</span>
+          </div>
+          <span class="cost-value">$${result.baseFare.toFixed(2)}</span>
+        </div>
+        <div class="cost-row">
+          <div class="left-side">
+            <span class="cost-icon">⛽</span>
+            <span class="cost-label">Fuel surcharge</span>
+          </div>
+          <span class="cost-value">$0.00</span>
+        </div>
+        <div class="cost-row total-row">
+          <div class="left-side">
+            <span class="cost-icon" style="opacity:1;">🧾</span>
+            <span class="total-label">Total Estimate</span>
+          </div>
+          <span class="total-val">$${result.total.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="cost-why">Short-distance flat rate — no per-mile charge applies for rides under 5 miles.</div>`;
   } else {
-    breakdown += `💵 Base ($1.50 × ${miles.toFixed(1)} mi): <strong>$${result.baseFare.toFixed(2)}</strong><br>`;
-    breakdown += `⛽ Gas surcharge ($0.10 × ${miles.toFixed(1)} mi): <strong>$${result.gasFee.toFixed(2)}</strong>`;
+    breakdown = `
+      <div class="cost-breakdown-box">
+        <div class="cost-row">
+          <div class="left-side">
+            <span class="cost-icon">📏</span>
+            <span class="cost-label">Distance</span>
+          </div>
+          <span class="cost-value">${miles.toFixed(1)} mi</span>
+        </div>
+        <div class="cost-row highlight">
+          <div class="left-side">
+            <span class="cost-icon">💵</span>
+            <span class="cost-label">Base rate ($1.50 &times; ${miles.toFixed(1)} mi)</span>
+          </div>
+          <span class="cost-value">$${result.baseFare.toFixed(2)}</span>
+        </div>
+        <div class="cost-row">
+          <div class="left-side">
+            <span class="cost-icon">⛽</span>
+            <span class="cost-label">Fuel surcharge ($0.10 &times; ${miles.toFixed(1)} mi)</span>
+          </div>
+          <span class="cost-value">$${result.gasFee.toFixed(2)}</span>
+        </div>
+        <div class="cost-row total-row">
+          <div class="left-side">
+            <span class="cost-icon" style="opacity:1;">🧾</span>
+            <span class="total-label">Total Estimate</span>
+          </div>
+          <span class="total-val">$${result.total.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="cost-why">Base fare covers driver pay, car depreciation &amp; insurance. The $0.10/mi fuel surcharge is temporary due to elevated gas prices.</div>`;
   }
 
   fareBreakdown.innerHTML = breakdown;
+  fareBreakdown.style.display = 'block';
 
-  // Enable WhatsApp
+  // Show fare card & WhatsApp buttons
+  showFareCard();
   shareActions.style.display = 'flex';
   whatsappTextBtn.onclick = () => shareOnWhatsAppText(result, miles);
   whatsappImgBtn.onclick = () => shareAsImage();
 
-  estimateBtn.textContent = '🔍 Get Fare Estimate';
+  estimateBtn.innerHTML = '<span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">bolt</span> Get Fare Estimate';
   estimateBtn.disabled = false;
+
+  // Scroll the fare card into view on mobile
+  fareCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
 // --------------- WHATSAPP SHARE ---------------
@@ -549,6 +705,7 @@ function shareOnWhatsAppText(result, miles) {
   }
   
   msg += `━━━━━━━━━━━━━━━━━━\n`;
+  msg += `Book via: https://albany-ride-calculator.vercel.app\n`;
   const encoded = encodeURIComponent(msg);
   window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
 }
@@ -577,7 +734,7 @@ function shareLongDistanceOnWhatsAppText(miles) {
   msg += `📏 Distance: ${miles.toFixed(1)} mi\n\n`;
   msg += `*Note:* This ride exceeds the standard 30-mile range. Please respond to negotiate a direct price with me!\n`;
   msg += `━━━━━━━━━━━━━━━━━━\n`;
-  msg += `Book via: https://albany-ride-calculator.netlify.app`;
+  msg += `Book via: https://albany-ride-calculator.vercel.app\n`;
 
   // Fix: Some mobile browsers truncate WhatsApp links on certain encoded characters 
   // if not cleanly formed. We ensure full URI encoding.
